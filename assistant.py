@@ -4,6 +4,27 @@ import speech_recognition as sr
 import pyperclip
 import google.generativeai as genai
 import glados
+import subprocess
+import asyncio
+import threading
+import os
+import time
+
+def play_audio_files_sequentially(audio_files):
+    for audio_file in audio_files:
+        if detect_wake_word():  # Interrupt playback if wake word is detected
+            print("Playback interrupted by wake word.")
+            return
+        subprocess.run(["ffplay", "-nodisp", "-autoexit", audio_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+async def play_audio_async(audio_files):
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, play_audio_files_sequentially, audio_files)
+
+def start_audio_playback(audio_files):
+    playback_thread = threading.Thread(target=lambda: asyncio.run(play_audio_async(audio_files)))
+    playback_thread.start()
+    return playback_thread
 
 tts = glados.TTS()
 groq_client = Groq(api_key="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")
@@ -132,7 +153,7 @@ def detect_wake_word():
         audio = recognizer.listen(source)
         try:
             text = recognizer.recognize_google(audio)
-            if "hey" in text.lower():
+            if "hey glados" in text.lower():
                 print("Wake word detected!")
                 return True
             else:
@@ -141,6 +162,8 @@ def detect_wake_word():
             return False
         except sr.RequestError:
             return False
+
+
 
 while True:
     if detect_wake_word():
@@ -164,5 +187,26 @@ while True:
             
             response = groq_prompt(prompt=prompt, img_context=visual_context)
             print(response)
-            audio = tts.generate_speech_audio(response)
-            tts.play_audio_async(audio)
+            
+            paragraphs = response.split("\n\n")
+            
+            paragraph_list = [paragraph.strip() for paragraph in paragraphs]
+
+            
+            usefulparagraphs = []
+            audio_files = []
+            
+            for paragraph in paragraph_list:
+                audio = tts.generate_speech_audio(paragraph)
+                usefulparagraphs.append(audio)
+
+            # Save each audio clip as a WAV file
+            for i, audio in enumerate(usefulparagraphs):
+                tts.save_wav(audio, f"paragraph_{i}.wav")
+                audio_files.append(f"paragraph_{i}.wav")
+
+            
+
+            audio_thread = start_audio_playback(audio_files)
+            #audio = tts.generate_speech_audio(response)
+            #tts.play_audio_async(audio)
