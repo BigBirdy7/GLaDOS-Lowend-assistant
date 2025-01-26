@@ -14,3 +14,5 @@ important comments:
 uhh delete screenshot maybe idk
 
 im just testing if commiting works after stealing someones repo I WILL CREDIT THEM LATER DONT WORRY I WANT TO SLEEP NOW
+
+erm my api keys are public 
