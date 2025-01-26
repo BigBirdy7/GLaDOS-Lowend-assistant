@@ -12,3 +12,5 @@ important comments:
 #also account for retarded mic taking 3 secs to come online, constant initilazation is making this worse probably
 
 uhh delete screenshot maybe idk
+
+im just testing if commiting works after stealing someones repo I WILL CREDIT THEM LATER DONT WORRY I WANT TO SLEEP NOW
