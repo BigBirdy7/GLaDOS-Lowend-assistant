@@ -120,7 +120,7 @@ def recognize_speech():
             print("Sorry, the speech service is down.")
             return None
 
-#change wake word to "hey glados"
+
 #make micrphone initilize only at the start to prevent latency
 #also account for retarded mic taking 3 secs to come online, constant initilazation is making this worse probably
 
@@ -132,7 +132,7 @@ def detect_wake_word():
         audio = recognizer.listen(source)
         try:
             text = recognizer.recognize_google(audio)
-            if "hey" in text.lower():
+            if "hey glados" in text.lower():
                 print("Wake word detected!")
                 return True
             else:
