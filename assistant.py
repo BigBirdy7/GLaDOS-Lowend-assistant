@@ -4,6 +4,13 @@ import speech_recognition as sr
 import pyperclip
 import google.generativeai as genai
 import glados
+import time
+import threading
+import queue
+
+recognizer = sr.Recognizer()
+microphone = sr.Microphone()
+command_queue = queue.Queue()
 
 tts = glados.TTS()
 groq_client = Groq(api_key="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")
@@ -104,65 +111,79 @@ def vision_prompt(prompt, photo_path):
     response = model.generate_content([prompt, img])
     return response.text
 
-def recognize_speech():
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        print("Listening...")
-        audio = recognizer.listen(source)
+def listen_for_wake_word_and_command(recognizer, microphone):
+    print("Waiting for wake word and command...")
+    while True:
+        print("Listening thread is running...")  # Debug log
         try:
-            text = recognizer.recognize_google(audio)
-            print(f"USER: {text}")
-            return text
-        except sr.UnknownValueError:
-            print("Sorry, I did not understand that.")
-            return None
-        except sr.RequestError:
-            print("Sorry, the speech service is down.")
-            return None
+            with microphone as source:
+                recognizer.adjust_for_ambient_noise(source, duration=1)  # Adjust duration
+                print("Listening...")
+                audio = recognizer.listen(source, phrase_time_limit=5)  # Limit listening duration
+                try:
+                    text = recognizer.recognize_google(audio).lower()
+                    print(f"Recognized text: {text}")  # Debug log
+                    if "hey glados" in text:
+                        print("Wake word detected! Listening for command...")
+                        command = text.replace("hey glados", "").strip()
+                        if command:
+                            print(f"Command detected: {command}")
+                            command_queue.put(command)
+                        else:
+                            print("No command detected after wake word.")
+                    else:
+                        print("Wake word not detected.")
+                except sr.UnknownValueError:
+                    print("Sorry, I did not understand that.")
+                except sr.RequestError:
+                    print("Sorry, the speech service is down.")
+        except OSError as e:
+            print(f"Microphone access error: {e}. Retrying in 5 seconds...")
+            time.sleep(5)
 
+def tts_worker():
+    while True:
+        if not command_queue.empty():
+            prompt = command_queue.get()
+            if prompt:
+                call = function_call(prompt)
 
-#make micrphone initilize only at the start to prevent latency
-#also account for retarded mic taking 3 secs to come online, constant initilazation is making this worse probably
+                if 'take screenshot' in call:
+                    print('Taking screenshot')
+                    take_screenshot()
+                    visual_context = vision_prompt(prompt=prompt, photo_path='screenshot.jpg')
 
+                elif 'extract clipboard' in call:
+                    print('Copying clipboard text')
+                    paste = get_clipboard_text()
+                    prompt = f'{prompt}\n\nCLIPBOARD CONTENT: {paste}'
+                    visual_context = None
+                
+                else:
+                    visual_context = None
+                
+                response = groq_prompt(prompt=prompt, img_context=visual_context)
+                print(response)
+                audio = tts.generate_speech_audio(response)
+                tts.play_audio_async(audio)
+        time.sleep(0.1)  # Small delay to prevent busy-waiting
 
-def detect_wake_word():
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        print("Waiting for wake word...")
-        audio = recognizer.listen(source)
-        try:
-            text = recognizer.recognize_google(audio)
-            if "hey glados" in text.lower():
-                print("Wake word detected!")
-                return True
-            else:
-                return False
-        except sr.UnknownValueError:
-            return False
-        except sr.RequestError:
-            return False
+# Start the listening thread
+listening_thread = threading.Thread(
+    target=listen_for_wake_word_and_command,
+    args=(recognizer, microphone),
+    daemon=True
+)
+listening_thread.start()
 
-while True:
-    if detect_wake_word():
-        prompt = recognize_speech()
-        if prompt:
-            call = function_call(prompt)
+# Start the TTS worker thread
+tts_thread = threading.Thread(target=tts_worker, daemon=True)
+tts_thread.start()
 
-            if 'take screenshot' in call:
-                print('Taking screenshot')
-                take_screenshot()
-                visual_context = vision_prompt(prompt=prompt, photo_path='screenshot.jpg')
-
-            elif 'extract clipboard' in call:
-                print('Copying clipboard text')
-                paste = get_clipboard_text()
-                prompt = f'{prompt}\n\nCLIPBOARD CONTENT: {paste}'
-                visual_context = None
-            
-            else:
-                visual_context = None
-            
-            response = groq_prompt(prompt=prompt, img_context=visual_context)
-            print(response)
-            audio = tts.generate_speech_audio(response)
-            tts.play_audio_async(audio)
+# Keep the main thread alive
+print("Assistant is running. Press Ctrl+C to exit.")
+try:
+    while True:
+        time.sleep(1)  # Keep the main thread alive
+except KeyboardInterrupt:
+    print("Exiting...")
