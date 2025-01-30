@@ -349,7 +349,7 @@ def listen_for_wake_word_and_command(recognizer, microphone):
                 with microphone as source:
                     recognizer.adjust_for_ambient_noise(source, duration=1)  # Adjust duration
                     #print("Listening...")
-                    audio = recognizer.listen(source, phrase_time_limit=5)  # Limit listening duration
+                    audio = recognizer.listen(source, phrase_time_limit=30)  # Limit listening duration
                     try:
                         text = recognizer.recognize_google(audio).lower()
                         print(f"Recognized text: {text}")  # Debug log
@@ -436,8 +436,12 @@ def speaker():
     while running:
         if speak == True:
             for sentence in usefulparagraphs:
-                tts.play_audio(sentence)
-                time.sleep(0.35)
+#                tts.play_audio(sentence)
+                print(len(sentence)/samplerate)
+                
+                tts.play_audio_async(sentence)
+                time.sleep(0.71 * (len(sentence)/samplerate))
+                time.sleep(0.4)
             speak = False
         time.sleep(0.1)
     
