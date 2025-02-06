@@ -349,11 +349,11 @@ def listen_for_wake_word_and_command(recognizer, microphone):
                 with microphone as source:
                     recognizer.adjust_for_ambient_noise(source, duration=1)  # Adjust duration
                     #print("Listening...")
-                    audio = recognizer.listen(source, phrase_time_limit=30)  # Limit listening duration
+                    audio = recognizer.listen(source, phrase_time_limit=10)  # Limit listening duration
                     try:
                         text = recognizer.recognize_google(audio).lower()
                         print(f"Recognized text: {text}")  # Debug log
-                        if "glados" in text:
+                        if "glados" or "gladys" in text:
                             print("Wake word detected! Listening for command...")
                             command = text.replace("hey glados", "").strip()
                             if command:
