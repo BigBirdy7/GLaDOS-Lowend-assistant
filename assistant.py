@@ -444,7 +444,7 @@ def speaker():
                 time.sleep(0.4)
             speak = False
         time.sleep(0.1)
-    
+    #d
 
 ui_thread = threading.Thread(target=ui, daemon=True)
 ui_thread.start()
