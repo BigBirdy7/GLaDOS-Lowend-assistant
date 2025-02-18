@@ -311,6 +311,14 @@ def take_screenshot():
     screenshot = ImageGrab.grab()
     rgb_screenshot = screenshot.convert('RGB')
     rgb_screenshot.save(path, quality=15)
+
+def periodic_screenshot():
+    global prompt
+    while running:
+        #command = 'take screenshot to see if user is on task, meaning working. things that are not on task are playing games or watching videos. but if they are on task, say nothing, reply with "~"'
+        command = 'take screenshot to see if user is on task, meaning working. if they are working, say nothing.'
+        command_queue.put(command)
+        time.sleep(120)
     
 def get_clipboard_text():
     clipboard_content = pyperclip.paste()
@@ -375,8 +383,8 @@ def listen_for_wake_word_and_command(recognizer, microphone):
 
 def tts_worker(paragraph_list,usefulparagraphs):
     global speak
+    global prompt
     while running:
-        
         if not command_queue.empty():
             prompt = command_queue.get()
             if prompt:
@@ -399,28 +407,31 @@ def tts_worker(paragraph_list,usefulparagraphs):
                 response = groq_prompt(prompt=prompt, img_context=visual_context)
                 #print(response)
 
-                
-                paragraph_list.clear()
-                usefulparagraphs.clear()
-                tts.stop_audio()
-                
+
+                if "ilen" in response:
+                    print(f"silent response: {response}")
+                elif "o response" in response:
+                    print(f"silent response: {response}")
+                else:
+                    paragraph_list.clear()
+                    usefulparagraphs.clear()
+                    tts.stop_audio()
+                    
 
 
-                paragraphs = response.split(". ")
-            
-                paragraph_list = [paragraph.strip() + "." for paragraph in paragraphs]
+                    paragraphs = response.split(". ")
+                
+                    paragraph_list = [paragraph.strip() + "." for paragraph in paragraphs]
 
-                tts.stop_audio()
-                
-                
-                for paragraph in paragraph_list:
-                    audio = tts.generate_speech_audio(paragraph)
-                    speak = True
-                    usefulparagraphs.append(audio)
-                    print(paragraph)
-                    print("\n")
-
-                
+                    tts.stop_audio()
+                    
+                    
+                    for paragraph in paragraph_list:
+                        audio = tts.generate_speech_audio(paragraph)
+                        speak = True
+                        usefulparagraphs.append(audio)
+                        print(paragraph)
+                        print("\n")
                                 
 
                 #audio = tts.generate_speech_audio(response)
@@ -465,6 +476,9 @@ tts_thread.start()
 
 speaker_thread = threading.Thread(target=speaker, daemon=True)
 speaker_thread.start()
+
+screenshot_thread = threading.Thread(target=periodic_screenshot, daemon=True)
+screenshot_thread.start()
 
 
 
