@@ -1,9 +1,0 @@
-name: glados-build
-channels:
-  - conda-forge
-dependencies:
-  - python>=3.12.8,<3.13
-  - pip
-  - pip:
-    - -r requirements.txt
-    - pyinstaller
